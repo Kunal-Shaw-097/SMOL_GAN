@@ -17,3 +17,8 @@
 ## NIPS 2016 Tutorial: Generative Adversarial Networks
 **Paper** - https://arxiv.org/pdf/1701.00160
 - Ian Goodfellow
+
+
+**EXTRAS**
+- https://github.com/soumith/ganhacks
+- https://in.mathworks.com/help/deeplearning/ug/monitor-gan-training-progress-and-identify-common-failure-modes.html#mw_f7532f53-e5a3-405b-9fa6-e56dc6e6304f
