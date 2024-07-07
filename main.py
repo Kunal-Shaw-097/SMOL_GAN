@@ -24,23 +24,40 @@ lr = 0.0002
 z = 100
 beta_1 = 0.5
 beta_2 = 0.999
+norm_affine = False
+img_size = 64
+hidden_dim = 512
 
-epochs = 5
+
+epochs = 7
 
 save_dir = Path("results/")
 
 if __name__=="__main__": 
 
-    dataset = LSUN("LSUN/", size = 128)
+    if save_dir.exists() :
+        print("Result directory already exist, are you sure you want to continue?")
+        check = input("Enter 1 if yes: ")
+        if check != '1' :
+            print("Aborting.....")
+            exit()
+
+    dataset = LSUN("LSUN/", size = img_size)
 
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=6 , collate_fn=dataset.collate_fn)
 
-    gen = DcGanX128Generator(100, 3, 512).to(device)
-    dis = DcGanX128Discriminator(3, 512).to(device)
+    # reducing the number of channels in discriminator to half the number of channels in Generator seems to work good
+    gen = DcGanX64Generator(z_dim=z, im_channel=3, hidden_dim=hidden_dim, norm_affine=norm_affine).to(device)
+    dis = DcGanX64Discriminator(im_channel=3, hidden_dim=hidden_dim//2, norm_affine=norm_affine).to(device)
 
     optimizer_gen = torch.optim.Adam(gen.parameters(), lr= lr, betas=(beta_1, beta_2))
     optimizer_dis = torch.optim.Adam(dis.parameters(), lr= lr, betas=(beta_1, beta_2))
 
+    
+    # compile the models for slightly faster training
+    gen = torch.compile(gen)
+    dis = torch.compile(dis)
+ 
     log_steps = 1                       
     step = 0
 
@@ -73,26 +90,35 @@ if __name__=="__main__":
             fake_labels = torch.zeros(batch_size, 1).to(device)
             
             fake_pred = dis(fake.detach())
-            real_preds = dis(real)
-
             loss1 = f.binary_cross_entropy(fake_pred, fake_labels)
+            loss1.backward()
+
+            real_preds = dis(real)
             loss2 = f.binary_cross_entropy(real_preds, real_labels)
+            loss2.backward()   
+
+            p_x = real_preds.mean().item()
+            p_gz = fake_pred.mean().item()            
+
 
             loss_d = (loss1 + loss2)/2
-
-            loss_d.backward()
             optimizer_dis.step()
 
             # ---------------- step for Generator -------------------------#
 
             optimizer_gen.zero_grad() 
 
+            # noise = torch.randn(batch_size, z).to(device)
+            # fake2 = gen(noise)
+
             fake_pred2 = dis(fake)
-            
+        
             loss_g = f.binary_cross_entropy(fake_pred2, torch.ones(batch_size, 1).to(device))
 
             loss_g.backward()    
             optimizer_gen.step()
+
+            p_gz2 = fake_pred2.mean().item()
 
             # -------------------- logging and stuff -------------------------#
 
@@ -102,19 +128,14 @@ if __name__=="__main__":
             avg_gen_loss = total_gen_loss / (step + 1)
             avg_dis_loss = total_dis_loss / (step + 1)
 
-            pbar.set_description(f"TRAINING Epoch {i + 1} : AVG dis_loss : {avg_dis_loss:03f}, AVG gen_loss : {avg_gen_loss:03f}")
+            pbar.set_description(f"TRAINING Epoch {i + 1} : AVG dis_loss : {avg_dis_loss:.05f}, AVG gen_loss : {avg_gen_loss:.05f}, P(x) : {p_x:.02f}, P(G(z)) : {p_gz:.02f}, P(G(z))_2 : {p_gz2:.02f}")
 
-           
-
-            if step % log_steps == 0 or step == len(dataloader) - 1:
+            if step % log_steps == 0 or step//i == len(dataloader) - 1:
                 gen_losses.append((step + 1 ,avg_gen_loss.item()))
                 dis_losses.append((step + 1, avg_dis_loss.item()))
 
             step += 1
-
-            if step %10 == 0 :
-                break
-
+    
         sample_generation_per_epoch.append(fake[ :4, : , : , :].detach().permute(0, 2, 3, 1).cpu().numpy())
     
 
@@ -123,6 +144,11 @@ if __name__=="__main__":
     model_ckpt = {
         "Generator" : gen.state_dict(),
         "Discriminator" : dis.state_dict(),
+        "model_params" : {
+            "hidden_dim" : hidden_dim,
+            "z_dim" : z,
+            "norm_affine" : norm_affine,
+        }
     }
 
     loss_ckpt = {
@@ -176,7 +202,7 @@ if __name__=="__main__":
     plt.savefig(save_dir / "loss_plot.png", format='png', dpi=300)
     plt.show()
 
-    # ------------------- View generations over epochs and save  -------------------------------
+    # -------------------- View generations over epochs and save  -------------------------------
     fig, axes = plt.subplots(epochs, 4, figsize=(8, 3 * epochs))
     for i, epoch_images in enumerate(sample_generation_per_epoch):
         for j, img in enumerate(epoch_images):
@@ -186,6 +212,7 @@ if __name__=="__main__":
             ax.axis('off')
             if j == 0:
                 ax.set_title(f'Epoch {i+1}', loc='left')
+
     # Adjust spacing
     plt.tight_layout()
     plt.savefig(save_dir / 'sample_generation_plot.png', format='png', dpi=300)
