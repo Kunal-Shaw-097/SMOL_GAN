@@ -48,3 +48,17 @@ class LSUN(Dataset):
         x = x.permute(0, 3 , 1, 2).contiguous()
         y = torch.tensor(y).unsqueeze(1).float()
         return x, y
+    
+class GaussianNoiseAdder():
+    def __init__(self,std : float = 0.2, decay_rate : float = 0.1, decay_steps : int = 100, device : str = 'cpu'):
+        self.std = std
+        self.decay_rate = decay_rate
+        self.decay_steps = decay_steps
+        self.device = device
+
+    def apply(self, x : torch.Tensor, step : int) -> torch.Tensor:
+        # x ---> (B, C, H , W)
+        if step % self.decay_steps == 0 :
+            self.std = self.std * (1 - self.decay_rate)
+        noise = torch.randn(x.shape) * self.std
+        return x + noise
