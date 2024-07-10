@@ -21,19 +21,23 @@ torch.cuda.empty_cache()
 batch_size = 128
 
 lr = 0.0002
-z = 100
+z = 128
 beta_1 = 0.5
 beta_2 = 0.999
-norm_affine = False
+norm_affine = True
 img_size = 64
-hidden_dim = 512
+hidden_dim = 1024
 
 
-epochs = 7
+epochs = 10
 
 save_dir = Path("results/")
 
 if __name__=="__main__": 
+    # Torch random generator object for reproducibility
+    seed = 42
+    random_generator = torch.Generator()
+    random_generator.manual_seed(seed)
 
     if save_dir.exists() :
         print("Result directory already exist, are you sure you want to continue?")
@@ -44,7 +48,7 @@ if __name__=="__main__":
 
     dataset = LSUN("LSUN/", size = img_size)
 
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=6 , collate_fn=dataset.collate_fn)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=6 , collate_fn=dataset.collate_fn, generator=random_generator)
 
     # reducing the number of channels in discriminator to half the number of channels in Generator seems to work good
     gen = DcGanX64Generator(z_dim=z, im_channel=3, hidden_dim=hidden_dim, norm_affine=norm_affine).to(device)
@@ -70,7 +74,12 @@ if __name__=="__main__":
     sample_generation_per_epoch = []
     steps_per_epoch = len(dataloader)
 
+    # sample space to compare model generation between epochs
+    num_test_sample = 8
+    test_space = torch.randn(num_test_sample, z, generator= random_generator).to(device)
+
     for i in range(epochs):
+        gen.train()
 
         pbar = tqdm(dataloader, total=len(dataloader))
 
@@ -108,10 +117,10 @@ if __name__=="__main__":
 
             optimizer_gen.zero_grad() 
 
-            # noise = torch.randn(batch_size, z).to(device)
-            # fake2 = gen(noise)
+            noise = torch.randn(batch_size, z).to(device)
+            fake2 = gen(noise)
 
-            fake_pred2 = dis(fake)
+            fake_pred2 = dis(fake2)
         
             loss_g = f.binary_cross_entropy(fake_pred2, torch.ones(batch_size, 1).to(device))
 
@@ -135,8 +144,11 @@ if __name__=="__main__":
                 dis_losses.append((step + 1, avg_dis_loss.item()))
 
             step += 1
-    
-        sample_generation_per_epoch.append(fake[ :4, : , : , :].detach().permute(0, 2, 3, 1).cpu().numpy())
+
+        gen.eval()
+        with torch.no_grad():
+            save_preds = gen(test_space)
+        sample_generation_per_epoch.append(save_preds.detach().permute(0, 2, 3, 1).cpu().numpy())
     
 
     # -----------------Saving the model and losses-------------------------------------
@@ -203,7 +215,7 @@ if __name__=="__main__":
     plt.show()
 
     # -------------------- View generations over epochs and save  -------------------------------
-    fig, axes = plt.subplots(epochs, 4, figsize=(8, 3 * epochs))
+    fig, axes = plt.subplots(epochs, num_test_sample, figsize=(8, 3 * epochs))
     for i, epoch_images in enumerate(sample_generation_per_epoch):
         for j, img in enumerate(epoch_images):
             ax = axes[i, j]
