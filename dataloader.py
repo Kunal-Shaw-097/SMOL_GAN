@@ -60,5 +60,6 @@ class GaussianNoiseAdder():
         # x ---> (B, C, H , W)
         if step % self.decay_steps == 0 :
             self.std = self.std * (1 - self.decay_rate)
-        noise = torch.randn(x.shape) * self.std
-        return x + noise
+        noise = torch.randn(x.shape, requires_grad= False).to(self.device) * self.std
+        x = torch.clip(x + noise, min= -1, max= 1)          # clip values from -1 to 1 
+        return x
