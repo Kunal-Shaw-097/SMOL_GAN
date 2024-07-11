@@ -18,15 +18,15 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 torch.cuda.empty_cache()
 
-batch_size = 128
+batch_size = 256
 
-lr = 0.0002
-z = 128
-beta_1 = 0.5
-beta_2 = 0.999
-norm_affine = True
-img_size = 64
-hidden_dim = 1024
+lr = 0.0002                                      # as suggested by paper, keep low
+z = 128                                          # noise dimension, paper uses 100 but 128 works better for me
+beta_1 = 0.5                                     # as sugested by paper, default is 0.9 but does not work well
+beta_2 = 0.999                                                              
+norm_affine = True                               # set false to removed weight (scale) and bias from batchnorm, paper uses false but does not work for me.
+img_size = 64                                
+hidden_dim = 1024                            
 
 
 epochs = 10

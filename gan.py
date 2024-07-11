@@ -14,7 +14,7 @@ class ConvBlock(nn.Module):
         self.conv = nn.Conv2d(in_dim, out_dim, kernel_size, stride, padding, bias= False)
         self.conv_only = conv_only
         if not self.conv_only : 
-            self.norm = nn.BatchNorm2d(out_dim, affine= norm_affine)       # affine = false, sets scale to 1 and bias to 0 as suggested by the paper
+            self.norm = nn.BatchNorm2d(out_dim, affine= norm_affine)       # affine = false, sets scale to 1 and bias to 0 as suggested by the paper (did not work good for me ) :/
             self.act = nn.LeakyReLU(0.2)                                   #DCGAN paper uses 0.2 for leakyrelu
 
     def forward(self, x : torch.Tensor):
@@ -36,8 +36,8 @@ class ConvTransposeBlock(nn.Module):
         self.convt = nn.ConvTranspose2d(in_dim, out_dim, kernel_size, stride, padding, out_padding, bias= False)
         self.convt_only = convt_only
         if not self.convt_only :
-            self.norm = nn.BatchNorm2d(out_dim, affine= norm_affine)        # affine = false, sets scale to 1 and bias to 0 as suggested by the paper
-            self.act = nn.ReLU()
+            self.norm = nn.BatchNorm2d(out_dim, affine= norm_affine)        # affine = false, sets scale to 1 and bias to 0 as suggested by the paper (did not work good for me ) :/
+            self.act = nn.LeakyReLU(0.1)                                    # LeakyReLU works better than ReLU (paper used ReLU) :/
 
     def forward(self, x : torch.Tensor):
         x = self.convt(x)
