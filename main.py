@@ -8,7 +8,7 @@ from pathlib import Path
 import json
 
 from gan import DcGanX128Discriminator, DcGanX128Generator, DcGanX64Discriminator, DcGanX64Generator , DcGanX32Discriminator, DcGanX32Generator
-from dataloader import LSUN
+from dataloader import LSUN, GaussianNoiseAdder
 
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -25,11 +25,11 @@ z = 128                                          # noise dimension, paper uses 1
 beta_1 = 0.5                                     # as sugested by paper, default is 0.9 but does not work well
 beta_2 = 0.999                                                              
 norm_affine = True                               # set false to removed weight (scale) and bias from batchnorm, paper uses false but does not work for me.
-img_size = 64                                
+img_size = 64                            
 hidden_dim = 1024                            
 
 
-epochs = 10
+epochs = 20
 
 save_dir = Path("results/")
 
@@ -78,6 +78,8 @@ if __name__=="__main__":
     num_test_sample = 8
     test_space = torch.randn(num_test_sample, z, generator= random_generator).to(device)
 
+    noise_adder = GaussianNoiseAdder(std=0.3, decay_rate=0.1, decay_steps=len(dataloader)//16, device=device)        # decay the added noise 16 times per epoch
+
     for i in range(epochs):
         gen.train()
 
@@ -90,13 +92,15 @@ if __name__=="__main__":
 
             batch_size = imgs.shape[0]
             real = imgs.to(device)
+            
+            real = noise_adder.apply(real, step)
 
             real_labels = y.to(device)
-            noise = torch.randn(batch_size, z).to(device)
+            noise = torch.randn(batch_size, z, device=device)
 
             fake = gen(noise)
 
-            fake_labels = torch.zeros(batch_size, 1).to(device)
+            fake_labels = torch.zeros(batch_size, 1, device=device)
             
             fake_pred = dis(fake.detach())
             loss1 = f.binary_cross_entropy(fake_pred, fake_labels)
@@ -117,12 +121,12 @@ if __name__=="__main__":
 
             optimizer_gen.zero_grad() 
 
-            noise = torch.randn(batch_size, z).to(device)
+            noise = torch.randn(batch_size, z, device=device)
             fake2 = gen(noise)
 
             fake_pred2 = dis(fake2)
         
-            loss_g = f.binary_cross_entropy(fake_pred2, torch.ones(batch_size, 1).to(device))
+            loss_g = f.binary_cross_entropy(fake_pred2, torch.ones(batch_size, 1, device= device))
 
             loss_g.backward()    
             optimizer_gen.step()
@@ -215,7 +219,7 @@ if __name__=="__main__":
     plt.show()
 
     # -------------------- View generations over epochs and save  -------------------------------
-    fig, axes = plt.subplots(epochs, num_test_sample, figsize=(8, 3 * epochs))
+    fig, axes = plt.subplots(epochs, num_test_sample, figsize=(10, 3 * epochs))
     for i, epoch_images in enumerate(sample_generation_per_epoch):
         for j, img in enumerate(epoch_images):
             ax = axes[i, j]
