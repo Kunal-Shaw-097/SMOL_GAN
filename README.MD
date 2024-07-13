@@ -22,3 +22,27 @@
 **EXTRAS**
 - https://github.com/soumith/ganhacks
 - https://in.mathworks.com/help/deeplearning/ug/monitor-gan-training-progress-and-identify-common-failure-modes.html#mw_f7532f53-e5a3-405b-9fa6-e56dc6e6304f
+
+
+# RESULTS
+
+Trained a GAN for 20 epochs on a sub-set of the LSUN bedroom dataset (around 300k images). Here is a per epoch evolution of generations over a fixed sample of random  noise.
+
+![](results/sample_generation_plot.png)
+
+Here is the loss plot!
+
+![](results/loss_plot.png)
+
+# Hyperparameters
+
+- Z dimension (noise/latent space) : 128
+- learning rate: 0.0002 
+- Optimizer used: ADAM 
+   - Beta1: 0.5
+   - Beta2: 0.999
+- Generator filters: 1024
+- Discriminator filters: 512
+
+
+*Have a Nice day!*
