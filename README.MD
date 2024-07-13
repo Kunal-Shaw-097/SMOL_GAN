@@ -44,5 +44,6 @@ Here is the loss plot!
 - Generator filters: 1024
 - Discriminator filters: 512
 
+**Model Weights**: https://drive.google.com/file/d/1SbUywCkZmFpOmYb-SfBHpCLCFUl5Dq-u/view?usp=drive_link
 
 *Have a Nice day!*
