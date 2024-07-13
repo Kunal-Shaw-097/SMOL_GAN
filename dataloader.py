@@ -51,15 +51,21 @@ class LSUN(Dataset):
     
 class GaussianNoiseAdder():
     def __init__(self,std : float = 0.2, decay_rate : float = 0.1, decay_steps : int = 100, device : str = 'cpu'):
+        """
+        std : amount of noise to add, increase it to increase noise
+        decay_rate : how fast the noise decays
+        decay_steps : when to apply the decay rate to the std to decrease noise gradually
+        device : needed to initiliaze the noise to the correct deivice to prevent device mismatch
+        """
         self.std = std
         self.decay_rate = decay_rate
-        self.decay_steps = decay_steps
+        self.decay_steps = decay_steps  + 1
         self.device = device
 
     def apply(self, x : torch.Tensor, step : int) -> torch.Tensor:
         # x ---> (B, C, H , W)
-        if step % self.decay_steps == 0 :
+        if step % self.decay_steps == 0 and self.std > 1e-7:
             self.std = self.std * (1 - self.decay_rate)
-        noise = torch.randn(x.shape, requires_grad= False).to(self.device) * self.std
+        noise = torch.randn(x.shape, requires_grad= False, device=self.device) * self.std
         x = torch.clip(x + noise, min= -1, max= 1)          # clip values from -1 to 1 
         return x
