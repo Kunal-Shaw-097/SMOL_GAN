@@ -20,8 +20,6 @@ for i, modules in ckpt.items():
 
 generator.load_state_dict(model_ckpt)
 
-generator.eval()
-
 for j in range(10):
 
     num_generations = 4
